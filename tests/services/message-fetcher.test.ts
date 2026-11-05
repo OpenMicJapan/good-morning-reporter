@@ -23,7 +23,7 @@ describe('services/message-fetcher.test.ts', () => {
     },
     gemini: {
       apiKey: 'test-key',
-      model: 'gemini-2.0-flash',
+      model: 'gemini-3.8-flash',
       timeoutMs: 15000,
       retryMax: 5,
       retryBaseMs: 1000,
