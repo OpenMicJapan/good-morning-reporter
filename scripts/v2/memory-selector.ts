@@ -40,6 +40,8 @@ interface ScoredMemory {
   compositeScore: number;
 }
 
+const FALLBACK_QUERY_TEXT = 'コミュニティの今日の出来事';
+
 /**
  * 3層フィルタでメモリを選択する
  */
@@ -54,7 +56,9 @@ export async function selectMemories(
   userMemories: UserMemoryContext[];
 }> {
   // クエリ用の embedding を生成
-  const queryEmbedding = await generateEmbedding(gmContent);
+  // gm 0件 / スタンプ・画像のみの日は空文字になり embedContent が 400 を返すので代替クエリを使う
+  const queryText = gmContent.trim() || FALLBACK_QUERY_TEXT;
+  const queryEmbedding = await generateEmbedding(queryText);
 
   // Layer 1: SQL プリフィルタ（並行実行）
   const [serverResult, channelResult, userResult] = await Promise.all([
