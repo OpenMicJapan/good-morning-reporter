@@ -65,6 +65,23 @@ async function main(): Promise<void> {
 
     info('Starting daily count v2', { dateStr: todayDateStr, dryRun, readonly });
 
+    // 二重投稿ガード: 当日分の bot_posts が既にあれば何もせず終了
+    // （手動トリガーと cron 復活が重なっても投稿は1回に抑える）
+    if (!dryRun) {
+      const { data: existingPosts } = await supabase
+        .from('bot_posts')
+        .select('posted_at')
+        .eq('date_label', todayDateStr)
+        .limit(1);
+      if (existingPosts && existingPosts.length > 0) {
+        info('Already posted today, skipping', {
+          dateStr: todayDateStr,
+          postedAt: existingPosts[0].posted_at,
+        });
+        return;
+      }
+    }
+
     if (!readonly) {
       // ========================================
       // Phase 1: データ収集
