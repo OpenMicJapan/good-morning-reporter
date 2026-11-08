@@ -104,6 +104,14 @@ export async function generateAndStoreMessageEmbeddings(): Promise<number> {
         count++;
       }
     } catch (error) {
+      // 402（前払いクレジット枯渇）はリトライしても通らないので残りを叩かず打ち切る
+      if (isPaymentRequiredError(error)) {
+        warn('Embedding aborted: Gemini API payment required', {
+          id: msg.id,
+          remaining: messages.length - count,
+        });
+        break;
+      }
       warn('Failed to generate embedding for message', {
         id: msg.id,
         error,
@@ -113,6 +121,13 @@ export async function generateAndStoreMessageEmbeddings(): Promise<number> {
 
   info('Generated message embeddings', { count, total: messages.length });
   return count;
+}
+
+/**
+ * Gemini API の 402 Payment Required（前払いクレジット枯渇）か
+ */
+export function isPaymentRequiredError(error: unknown): boolean {
+  return (error as { status?: number } | null)?.status === 402;
 }
 
 /**

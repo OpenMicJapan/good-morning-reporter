@@ -10,7 +10,7 @@
 import { config as dotenvConfig } from 'dotenv';
 import { fetchMessages, postResult } from './discord-client.js';
 import { generateMessage } from './gemini-client.js';
-import { info, error as logError } from './utils/logger.js';
+import { info, warn, error as logError } from './utils/logger.js';
 import { getStartOfDayUTC, formatDateString } from './utils/timezone.js';
 import { snowflakeToTimestampMs } from './utils/snowflake.js';
 import {
@@ -21,7 +21,7 @@ import { fetchAndStoreMessages } from './v2/message-store.js';
 import { generateAndStoreMessageEmbeddings } from './v2/embedding.js';
 import { assignConversationIds } from './v2/conversation.js';
 import {
-  extractAndStoreMemories,
+  extractAndStoreMemoriesWithStatus,
   decayOngoingMemories,
 } from './v2/memory-extractor.js';
 import { selectMemories } from './v2/memory-selector.js';
@@ -109,8 +109,16 @@ async function main(): Promise<void> {
       await assignConversationIds();
 
       // メモリ抽出（ongoing 減衰含む）
-      await extractAndStoreMemories(todayStart, guildId);
-      await decayOngoingMemories();
+      // 抽出が失敗した日に減衰だけ進めると、更新されないまま記憶が削られていくのでスキップする
+      const extraction = await extractAndStoreMemoriesWithStatus(
+        todayStart,
+        guildId,
+      );
+      if (extraction.ok) {
+        await decayOngoingMemories();
+      } else {
+        warn('Skipped memory decay because memory extraction failed');
+      }
     } else {
       info('READONLY mode: skipping Phase 1 & 2 (data collection & enrichment)');
     }

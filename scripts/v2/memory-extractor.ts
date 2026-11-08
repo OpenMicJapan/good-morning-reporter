@@ -26,6 +26,30 @@ export async function extractAndStoreMemories(
   periodEnd?: string,
   channelId?: number,
 ): Promise<number> {
+  const { count } = await extractAndStoreMemoriesWithStatus(
+    periodStart,
+    guildId,
+    periodEnd,
+    channelId,
+  );
+  return count;
+}
+
+export interface MemoryExtractionResult {
+  count: number;
+  /** false = 取得 or Gemini 呼び出しが失敗した（0件抽出とは区別する） */
+  ok: boolean;
+}
+
+/**
+ * extractAndStoreMemories と同じだが、失敗と「抽出0件」を区別して返す
+ */
+export async function extractAndStoreMemoriesWithStatus(
+  periodStart: string,
+  guildId: string,
+  periodEnd?: string,
+  channelId?: number,
+): Promise<MemoryExtractionResult> {
   // periodEnd が未指定なら翌日の 00:00 をデフォルトにする
   const end =
     periodEnd ??
@@ -50,10 +74,10 @@ export async function extractAndStoreMemories(
 
   if (error) {
     warn('Failed to fetch today messages for memory extraction', { error });
-    return 0;
+    return { count: 0, ok: false };
   }
 
-  if (!todayMessages || todayMessages.length === 0) return 0;
+  if (!todayMessages || todayMessages.length === 0) return { count: 0, ok: true };
 
   // チャンネル名を取得
   const channelIds = [...new Set(todayMessages.map((m) => m.channel_id))];
@@ -99,7 +123,7 @@ export async function extractAndStoreMemories(
 
     if (memories.length === 0) {
       info('No memories extracted');
-      return 0;
+      return { count: 0, ok: true };
     }
 
     let count = 0;
@@ -112,10 +136,10 @@ export async function extractAndStoreMemories(
       count,
       total: memories.length,
     });
-    return count;
+    return { count, ok: true };
   } catch (error) {
     warn('Failed to extract memories', { error });
-    return 0;
+    return { count: 0, ok: false };
   }
 }
 
